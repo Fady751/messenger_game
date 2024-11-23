@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Messages</h1>
+        <h3 id="error" style="color: red;"></h3>
+        <ul id="messages"></ul>
+
+        <form id="messageForm">
+            <input type="text" id="messageInput" placeholder="Type your message..." required>
+            <button type="submit">Send</button>
+        </form>
+    </div>
+
+    <script>
+        const messageForm = document.getElementById('messageForm');
+        const messageInput = document.getElementById('messageInput');
+        const messages = document.getElementById('messages');
+        const error = document.getElementById('error');
+        const jwt = localStorage.getItem('tokenMessage');
+        const ws = new WebSocket(`ws://${window.location.hostname}:8080`);
+
+
+        ws.onmessage = (msg) => {
+            const val = JSON.parse(msg.data);
+            const li = document.createElement('li');
+            li.textContent = val.username + ": " + val.message;
+            messages.appendChild(li);
+        }
+
+        (async()=>{
+            const res = await fetch('/messages');
+            const data = (await res.json()).data;
+            data.forEach(row => {
+                const li = document.createElement('li');
+                li.textContent = row.username + ": " + row.message;
+                messages.appendChild(li);
+            });
+        })()
+
+
+
+        messageForm.addEventListener('submit', async(e) => {
+            e.preventDefault();
+
+            const newMessage = messageInput.value;
+
+            const res = await fetch(`/send_message`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'authorization': jwt
+                },
+                body: JSON.stringify({ content: newMessage })
+            });
+
+            if(res.status == 401 || res.status == 403) {
+                alert('please login');
+                window.location.href = '/login.html';
+            }
+
+            if(!res.ok) {
+                const err = await res.json();
+                error.innerHTML = err.error;
+                return;
+            }
+            messageInput.value = "";
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signup</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Signup</h1>
+        <form id="signupForm">
+            <label id="error" style="color: red;"></label>
+            <input type="text" id="name" name="name" placeholder="Enter your name" required>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+            <input type="submit" value="Signup">
+        </form>
+    </div>
+    <script>
+        const signupForm = document.getElementById('signupForm');
+        const inputName = document.getElementById('name');
+        const inputPassword = document.getElementById('password');
+        const error = document.getElementById('error');
+
+        signupForm.addEventListener('submit', async(e)=>{
+            e.preventDefault();
+            const name = inputName.value;
+            const password = inputPassword.value;
+            try {
+                const response = await fetch('/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({name, password})
+                });
+                if(!response.ok) {
+                    const data = await response.json();
+                    error.innerHTML = data.error;
+                    return;
+                }
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        })
+    </script>
+</body>
+</html>
