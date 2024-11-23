@@ -1,0 +1,56 @@
+-- Create the database (if not created yet)
+CREATE DATABASE messenger;
+
+-- Switch to the newly created database
+\c messenger;
+
+-- Create the 'user' table
+CREATE TABLE "user" (
+    id SERIAL PRIMARY KEY,             -- Auto-incrementing ID
+    name VARCHAR(50) NOT NULL,         -- Name of the user (max 50 characters)
+    password VARCHAR(100) NOT NULL     -- Password (hashed, max 100 characters)
+);
+
+-- Create the 'message' table
+CREATE TABLE "message" (
+    id SERIAL PRIMARY KEY,             -- Auto-incrementing ID
+    user_id INTEGER NOT NULL,          -- Foreign key referencing 'user' table
+    content TEXT NOT NULL,             -- Message content
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp with default value
+    CONSTRAINT message_user_id_fkey FOREIGN KEY (user_id) 
+        REFERENCES "user"(id) ON DELETE CASCADE -- Cascade delete when user is removed
+);
+
+
+-- Create a function to send a notification when a new message is inserted
+CREATE OR REPLACE FUNCTION notify_new_message()
+RETURNS TRIGGER AS $$
+DECLARE
+    payload JSON;  -- Declare a JSON variable to hold the notification data
+    username VARCHAR(50);  -- Declare a variable to store the username
+BEGIN
+    -- Retrieve the username based on the user_id from the "user" table
+    SELECT name INTO username
+    FROM "user"
+    WHERE id = NEW.user_id;
+
+    -- Build the JSON payload with username, message content, and date
+    payload = json_build_object(
+        'username', username,      -- Username of the sender
+        'message', NEW.content,    -- The content of the message
+        'date', NEW.date           -- The date when the message was sent
+    );
+
+    -- Send the notification to the 'new_message' channel
+    PERFORM pg_notify('new_message', payload::text);
+
+    -- Return the new row so the insert operation can proceed
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create the trigger that fires after a new message is inserted
+CREATE TRIGGER message_insert_trigger
+AFTER INSERT ON message
+FOR EACH ROW
+EXECUTE FUNCTION notify_new_message();
